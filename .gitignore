@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# external standard libs
+fotocalc/css/
+fotocalc/js/
