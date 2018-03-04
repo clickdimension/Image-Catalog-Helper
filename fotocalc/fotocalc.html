@@ -1,0 +1,389 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<title>Light calc</title>
+	<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+	<meta name="generator" content="Geany 1.27" />
+
+    <link rel="stylesheet" href="ui/ionicons.css">
+    <link rel="stylesheet" href="css/bulma.css">
+    <script src="js/vue.min.js"></script>
+</head>
+
+<body>
+    
+	<div class="content" id="flash">
+        <h2>Flash</h2>
+        <table>
+            <tr>
+                <td>Flash: GN <input type="range" min=5 max=80 id="flash_gn" value="30" step="5" v-model="light.flash_gn100">
+                            {{ light.flash_gn100 }}
+
+                    <select v-model="light.flash_power">
+                        <option value="0" SELECTED>1 (FULL)</option>
+                        <option value="1">1/2</option>
+                        <option value="2">1/4</option>
+                        <option value="3">1/8</option>
+                        <option value="4">1/16</option>
+                        <option value="5">1/32</option>
+                        <option value="6">1/64</option>
+                        <option value="7">1/128</option>
+                    </select> Power 
+                </td>
+            </tr>
+            
+            <tr>
+                <td>
+            Lens Fnumber: <input type="range" min=0 max=11 id="fnumber" value="4" v-model="lens.fnumber_slide" >
+            {{ lens.l_fnumber[lens.fnumber_slide] }} 
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+            Camera ISO: <input type="range" min=0 max=9 id="iso_slide" v-model="cam.iso_slide" value="6"> 
+            {{ 50 * Math.pow(2, 9 - cam.iso_slide) }} 
+
+                </td>
+            </tr>
+
+            <tr>
+                <td> Resultado:
+                </td>
+            </tr>
+            
+            <tr>
+                <td>
+                    max distance {{ cc_distance }} m
+                </td>
+            </tr>
+
+        </table>
+        
+    </div>
+    
+        
+    
+    
+    
+	<div class="content" id="macro">
+        <h2>Macro</h2>
+        <table>
+            <tr>
+                <td>
+                Macro Filter:<input type="range" min=0 max=10 id="macro" value="0" v-model="lens_mod.macro"> 
+            {{ lens_mod.macro }} Dpt (equiv. {{ 1000/lens_mod.macro }} mm <span v-if="lens_mod.macro == 0">-- SIN filtro</span>) 
+            </td>
+            <td></td>
+            </tr>
+            
+            <tr>
+                <td>
+            Lens F: <input type="range" min=5 max=300 id="focal" value="50" step="5" v-model="lens.f"> 
+            {{ lens.f }} mm 
+            Max macro magnification 1/<input type="text" id="fmacromag" value="10" v-model="lens.fmag"> (close distance ca: {{ cc_d_close_old }} m)
+            <!--
+                Pana 42.5mm/1.7 1:5, 0.31m
+                Sigma 60mm/2.8 1:7.2, 0.5m
+                Helios-44-2 58mm/2 1:7(?) 0.5m
+            //-->
+                </td>
+                <td>
+            Fnumber: <input type="range" min=0 max=11 id="fnumber" value="4" v-model="lens.fnumber_slide" >
+            {{ lens.l_fnumber[lens.fnumber_slide] }} 
+                </td>
+             </tr>
+             
+             <tr>
+                 <td>
+            Extension tube:<input type="range" min=0 max=100 id="exttube" value="0" v-model="lens_mod.extension"> 
+            {{ lens_mod.extension }} mm <span v-if="lens_mod.extension == 0">-- SIN tubo de extension</span>
+                 </td>
+            <td></td>
+            </tr>
+            
+            <tr>
+                <td colspan=2> Resultado:
+                </td>
+            </tr>
+            
+            <tr>
+                <td>
+                    equivalent lens f {{ cc_f }} mm, magnification 1/{{ cc_mag }}
+                </td>
+                <td>
+                    equiv f-number: {{ cc_fnumber }}
+                </td>
+            </tr>
+            
+            <tr>
+                <td colspan=2>
+                    new close focus distance {{ cc_d_close_new }} m
+                </td>
+            </tr>
+            
+        </table>
+        
+    </div>
+    
+
+	<div class="content" id="dof">
+        <h2>Lens DOF</h2>
+        
+        <table>
+            <tr>
+                <td>
+            Lens F: <input type="range" min=5 max=300 id="focal" value="50" step="5" v-model="lens.f"> 
+            {{ lens.f }} mm 
+            
+                </td>
+                <td>
+            Fnumber: <input type="range" min=0 max=11 id="fnumber" value="4" v-model="lens.fnumber_slide">
+            {{ lens.l_fnumber[lens.fnumber_slide] }} 
+                </td>
+                
+                <td>
+                Focus: <input type="text" id="distance" value="10" v-model="lens.distance"> m 
+            </td>
+
+            </tr>
+            
+            <tr>
+                <td colspan=3>
+	Sensor: <select v-model="cam.sensorFMT">
+        <optgroup label="Medium Format">
+            <option value="84x56">84x56 Medium 6x9 (0.42x) film 120</option>
+        <option value="56x42">56x42 Medium 4.5x6 (0.62x)</option>
+        </optgroup>
+        
+        <optgroup label="Small Format">
+        <option value="36x24">36x24 Full Frame / Nikon FX (1.00x) 35mm</option>
+        <option value="28.7x19">28.7x19 Canon APS-H  (1.29x)</option>
+        <option value="23.6x15.6">23.6x15.6 Nikon DX/APS-C (1.53x)</option>
+        <option value="22.2x14.8">22.2x14.8 Canon APS-C (1.62x)</option>
+        <option value="17.3x13" SELECTED>17.3x13 4/3rds (2.00x) / pocket 110</option>
+        </optgroup>
+        
+        <optgroup label="Misc">
+        <option value="13.2x8.8">13.2x8.8 1" CCD (2.70x)</option>
+        <option value="12.4x7.5">12.4x7.5 Super 16 (2.98x)</option>
+        <option value="7.44x5.58">7.44x5.58 1/1.7" (Pentax Q, P&amp;Ss) (4.55x)</option>
+        <option value="6.16x4.6">6.16x4.6 1/2.3 (5.60x)</option>
+        <option value="5.63x4.2">5.63x4.22 Super 8mm film (6.13x)</option>
+        <option value="4.8x3.6">4.8x3.6 1/3" CCD (7.19x)</option>
+        </optgroup>
+    </select>
+    /
+    <select v-model="cam.MP">
+        <option value="2">2</option>
+        <option value="5">5</option>
+        <option value="8">8</option>
+        <option value="12">12</option>
+        <option value="16">16</option>
+        <option value="18">18</option>
+        <option value="20" SELECTED>20</option>
+        <option value="24">24</option>
+        <option value="36">36</option>
+        <option value="48">48</option>
+    </select> MP
+    
+                </td>
+                
+            </tr>
+
+            <tr>
+                <td colspan=3> Resultado:
+                </td>
+            </tr>
+            
+            <tr>
+                <td>
+                    area {{ cc_sensor_area }} mm2, diag:  {{ cc_sensor_diag }} mm, 
+                    <br>
+                    coc:  {{ cc_img_coc }} mm<br>
+                    hyperfocal: {{ cc_img_hyperfocal }} m, desde: {{ cc_img_dof_near }} m - hasta {{ cc_img_dof_far }} <span v-if="cc_img_dof_far!='infinito'">m</span>
+                </td>
+            </tr>
+            
+        </table>
+        
+    </div>
+
+
+    
+    <script>
+        
+var appf = new Vue({
+  el: '#dof',
+  data: {
+    lens: {
+        f: 50,
+        l_fnumber: [0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32, 45],
+        fnumber_slide: 5,
+        distance: 10,           /* atencion en metros !! */
+    },
+    cam: {
+        sensorFMT: "17.3x13",
+        MP: 20,
+    },
+    },
+    computed: {
+        cc_sensor_area: function() {
+            return this.cam.sensorFMT.split("x")[0] * this.cam.sensorFMT.split("x")[1];
+        },
+        cc_sensor_diag: function() {
+            return Math.round( 100 * Math.sqrt(this.cam.sensorFMT.split("x")[0] * this.cam.sensorFMT.split("x")[0] + this.cam.sensorFMT.split("x")[1] * this.cam.sensorFMT.split("x")[1]) ) / 100;
+        },
+        cc_sensor_pixelsize: function() {
+            /* ca. */
+            return Math.round( 100 * this.cc_sensor_area / this.cam.MP) / 100;
+        },
+        cc_img_coc: function() {
+            /* eventualmente usar segun lista ( valor redondeado) */
+            return Math.round( 10000 * this.cc_sensor_diag / 1500) / 10000;
+        },
+        cc_img_hyperfocal: function() {
+            return Math.round((this.lens.f * this.lens.f / (this.lens.l_fnumber[this.lens.fnumber_slide] * this.cc_img_coc) + this.lens.f) /10 )/ 100;
+        },
+        cc_img_dof_near: function() {
+            dof_temp = this.lens.distance * 1000 * (this.cc_img_hyperfocal * 1000 - this.lens.f)
+            return Math.round(dof_temp / (this.cc_img_hyperfocal * 1000 + this.lens.distance * 1000 - 2 * this.lens.f) / 10) / 100;
+        },
+        cc_img_dof_far: function() {
+            if (this.lens.distance < this.cc_img_hyperfocal) {
+                dof_temp = this.lens.distance * 1000 * (this.cc_img_hyperfocal * 1000 - this.lens.f);
+                return Math.round(dof_temp / (this.cc_img_hyperfocal * 1000 - this.lens.distance * 1000) / 10) / 100;
+            }
+            return 'infinito';
+        },
+    },
+    methods: {
+        setLensDof(){
+            dof_temp = this.lens.distance * 1000 * (this.lens.dhyperfocal * 1000 - this.lens.f);
+            this.image.dof_near = Math.round(dof_temp / (this.lens.dhyperfocal * 1000 + this.lens.distance * 1000 - 2 * this.lens.f) / 10) / 100;
+            this.image.dof_far = Math.round(dof_temp / (this.lens.dhyperfocal * 1000 - this.lens.distance * 1000) / 10) / 100;
+            if (this.image.dof_far < 0){ this.image.dof_far = 'infinito'}
+        },
+    }
+});
+
+
+var appf = new Vue({
+  el: '#flash',
+  data: {
+    light: {
+        EV: 5,              /* EV normado para ISO 100 */
+        EV_iso: 5,          /* EV de acuerdo al ISO actual !! */
+        flash_gn100: 30,
+        flash_power: 0,     /* 1/x valor del power actual */
+        flash_distance: 10, /* atencion en metros !! */
+    },
+    lens: {
+        f: 50,
+        l_fnumber: [0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32, 45],
+        fnumber_slide: 5,
+    },
+    cam: {
+        iso_slide: 8,
+        iso: 100,
+    },
+    },
+    computed: {
+        cc_distance: function() {
+            /* iso 100: distance = GN / fnumber */
+            /* return Math.round( 10 * this.light.flash_gn100 / this.lens.l_fnumber[this.lens.fnumber_slide] * this.lens.l_fnumber[9 - this.cam.iso_slide] / this.lens.l_fnumber[this.light.flash_power]) / 10; */
+            return Math.round( 10 * this.light.flash_gn100 / this.lens.l_fnumber[this.lens.fnumber_slide] * Math.pow(Math.SQRT2, 8 - this.cam.iso_slide) / Math.pow(Math.SQRT2, this.light.flash_power) ) / 10; 
+            
+        }
+    }
+    
+});
+        
+        
+var appm = new Vue({
+  el: '#macro',
+  data: {
+    lens: {
+        f: 50,
+        l_fnumber: [0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32, 45],
+        fnumber_slide: 5,
+        fmag: 10,
+    },
+    lens_mod: {
+        macro: 0,
+        extension: 0,
+    },
+    out: {
+        fmag_equiv: 10,
+        f_equiv: 50,
+    },
+    },
+    computed: {
+        cc_f: function() {
+            if (this.lens_mod.macro > 0){
+                return Math.round( 10 * 1/(1/this.lens.f + this.lens_mod.macro/1000) ) / 10;
+            } else {
+                return this.lens.f;
+            }
+        },
+        cc_mag: function() {
+            /* return Math.round( 100 * this.lens.fmag /(1 + this.lens_mod.macro/1000*this.lens.f*(this.lens.fmag+1)) ) / 100; */
+            return Math.round( 100 / ((1 + this.lens_mod.macro/1000*this.lens.f*(this.lens.fmag+1))/this.lens.fmag + this.lens_mod.extension / this.lens.f) ) / 100;
+        },
+        cc_d_close_old: function(){
+            /* retornar distancia en m */
+            return Math.round( ( this.lens.f * this.lens.fmag * (1 + 1/this.lens.fmag) * (1 + 1/this.lens.fmag)) / 10 ) / 100 ;
+        },
+        cc_d_close_new: function(){
+            /* retornar distancia en m */
+            return Math.round( ( this.lens.f * this.cc_mag * (1 + 1/this.cc_mag) * (1 + 1/this.cc_mag)) / 10 ) / 100;
+        },
+        cc_fnumber: function(){
+            return Math.round( 10 * this.lens.l_fnumber[this.lens.fnumber_slide] * (1+1/this.cc_mag)/(1+1/this.lens.fmag) ) / 10 ;
+        }
+    },
+    methods:{
+        fequiv(){
+            if (this.lens_mod.macro > 0){
+                /* this.out.f_equiv = Math.round( 10 * (1000/this.lens_mod.macro * this.lens.f) / (1000/this.lens_mod.macro + this.lens.f) ) / 10; */
+                this.out.f_equiv = Math.round( 10 * 1/(1/this.lens.f + this.lens_mod.macro/1000) ) / 10;
+            } else {
+                this.out.f_equiv = this.lens.f;
+                this.out.fmag_equiv = this.lens.fmag;
+            }
+        },
+    } 
+});        
+        
+        
+        
+/*
+ver tambien:
+https://www.cambridgeincolour.com/photography-tools.htm
+http://dofmaster.com/hyperfocal.html
+
+
+http://camerapedia.wikia.com/wiki/Light_and_Exposure_Values_(LV_%26_EV)
+EV = LV at ISO 100, Zero EV is defined as f/1.0 at one second, EV1 is one stop less: f/1.4 at 1 second, common values: 1 (dark)-17 (bright), negative value possible
+http://www.fredparker.com/ultexp1.htm
+
+
+http://dpanswers.com/roztr/content_show.php?id=317 Watt-Seconds vs. Guide Numbers
+GNm = SQRT(Ws) x 4 // using reflector ca 35mm lens like dispersion
+GN = distance (m) at iso100 f 1.0, distance = GN / fnumber
+http://oregoncoastphotoclub.tripod.com/calcs/flash.htm
+
+https://www.mhohner.de/formulas.php
+
+coc:
+human at 25cm: 0.2 mm (=5 lp/mm), at angle 60" is ca 30cm diagonal - 8″×10″
+if original is 35mm , equivalent factor 7, on negative/sensor coc equivalents 0.2mm/7 = 0.029mm
+
+http://photoseek.com/2013/compare-digital-camera-sensor-sizes-full-frame-35mm-aps-c-micro-four-thirds-1-inch-type/
+*/    
+    </script>
+</body>
+
+</html>
