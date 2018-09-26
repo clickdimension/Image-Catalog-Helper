@@ -25,8 +25,13 @@ import os, sys, time, shutil, string
 from PIL import Image, ExifTags
 import Tkinter, tkFileDialog, tkMessageBox
 import subprocess
+#import codecs
+
+import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 do_beep = 1
+
 
 """
 sorry requires:
@@ -35,6 +40,19 @@ exiftool - for lensinfo of DSLR o ILC cameras (other info simply from PIL)
 
 
 -- history:
+
+28/08/2018 ..:
+index.html/css, js.swapdetails: separacion visual de salto de mes en lista de miniaturas de imagenes
+js:copy2box: al click sobre la imagen se copian datos - para copiar y crear lista de fotos "destacados"
+js: "boton" nuevo para copiar y guardar placetags.js y filelist.txt  // pending: avoid duplicate !
+js: placetags crean separación visual, otras infos se 
+img_getexit: rstrip("\0") to strip off invalid characters, appeared randomly in some img_getexif(thisimage, 'Model') info of old images of cell phones, utf8 maybe not neccessary
+
+
+
+18/04/2018:
+agregado opcion de S - dirsync, copy/update files into target tree
+
 
 24/02/2018:
 agregado os.beep antes de directorio nuevo - si el sistema lo soporta
@@ -85,20 +103,35 @@ sudirectorio aunque quizas no haga falta
 
 -- ideas:
 
+ see https://github.com/chuckleplant/blog/blob/master/scripts/location-geotag.py -- use piexif
+ https://github.com/hMatoba/Piexif
+ https://www.blog.pythonlibrary.org/2010/03/28/getting-photo-metadata-exif-using-python/
+ https://motherboard.vice.com/en_us/article/aekn58/hack-this-extra-image-metadata-using-python - with pillow/python3
+ 
+ https://github.com/ianare/exif-py (exifread) ok, pero no incluye Panasonic tags :(
+ 
+Warning: Invalid EXIF text encoding for UserComment 
+
+
+    check index.html need update ? (version indicator or checksum?)
     dirscan: create md5 list ?
     show statistics ? #/MB jpg, #/MB raw, #/MB MOV, #/MB thumbs
      check py3.x compatible ?
      image_thumb: .. alerta al eliminar imagen grande ? (cuidado - no eliminar originales !!)
-     html/js: mejorar auto-grupo de acuerdo a fecha o salto de fecha o tag
+     html/js: mejorar auto-grupo de acuerdo a tag (ubicacion ?)
      js: eliminar cadena NULL (existe en nombre de camara)
      html: de alguna forma mostrar imagenes con star o tag
      html/dirscan: como listar/mostrar videos y otros archivos con medios
      run option adicional: list only + copy info files into cloned dir
      image_thumb: try create cuando archivo es corrupto o incorrecto ?
+     image_thumb: rotar si necesario ?
+     exif: ExposureProgram, Flash, hdr/panorama/stacked
+     mov-exif: show thumbnail @10sec, movie data:resolution/Hz, total time, date time (start/save)
      run option: clone dirtree - tambien desde directorio origen que no es formato DCIM original (clonar directorios de backup en blanco)
      run option: clone dirtree - opcion solamente clonar directorios base o hasta nivel xx
      run option: aceptar todos las siguientes preguntas yY 8seguir siguientes subdirectorios sin mas preguntas
      end of program: estadisticas: si se scanea desde sd card - mostrar disk usage/free
+     log messages: new month, files/bytes in last month
 
      
 structure:
@@ -124,6 +157,7 @@ catalog:/destino/index.html
         /125_OTRO_th.js
 
 """
+
 
 def img_getexif00(imgin, exif_detail = 'size_str'):
     return_exif = ''
@@ -188,7 +222,8 @@ def img_getexif(imgin, exif_detail = 'size_str'):
             return_exif = '-'
                        
     #return str(''.join(return_exif.split()))       # quitar los whitespace desde adentro
-    return str(return_exif)
+    return unicode(str(return_exif).rstrip("\0") , "utf-8")  #str(return_exif)        text.encode('utf-8') .strip('^@')
+
 
 def img_size(imgin):
     """
@@ -200,8 +235,21 @@ def img_size(imgin):
         img = Image.open(imgin)
         dimension = str(img.size[0]) + 'x' + str(img.size[1])
         
-    return dimension
+    return unicode(str(dimension), "utf-8")
+
+
+def samefiles(file1, file2, ignore_date = True):
     
+    if os.path.getsize(file1) != os.path.getsize(file2):
+        print file1 + ' not same size'
+        return False
+        
+    if not ignore_date and os.path.getmtime(file1) != os.path.getmtime(file2):
+        print file1 + ' not same date'
+        return False
+        
+    return True
+        
 
 def mk_dir(target_dir):
     """
@@ -214,7 +262,7 @@ def mk_dir(target_dir):
         while not os.path.exists(os.path.split(dirinferior)[0]):
             dirinferior=os.path.split(dirinferior)[0]
         if dirinferior == target_dir:
-            print ("intento crear: " , target_dir)
+            print "intento crear: " , target_dir
         os.mkdir(dirinferior)
 
     return 0
@@ -228,7 +276,7 @@ def img_thumb(imgin, imgout, newwidth = 200):
     # check imgout - eventualmente create dir, 
     # check imgout ya existe ? si incorrecto eliminar, si existe en subdir - mover, o crear
     # atencion panoramicos ...
-    print( imgout)
+    print ".",
     target_dir = os.path.split(imgout)[0]
     # el siguiente while ya es obsoleto por la funcion mk_dir que se llama antes
     while not os.path.exists(target_dir):
@@ -236,7 +284,7 @@ def img_thumb(imgin, imgout, newwidth = 200):
         while not os.path.exists(os.path.split(dirinferior)[0]):
             dirinferior=os.path.split(dirinferior)[0]
         if dirinferior == target_dir:
-            print ("intento crear: " , target_dir)
+            print "intento crear: " , target_dir
         os.mkdir(dirinferior)
         
     if os.path.exists(os.path.join(os.path.split(target_dir)[0], os.path.split(imgout)[1])):
@@ -253,18 +301,28 @@ def img_thumb(imgin, imgout, newwidth = 200):
             print ("found too big: " + os.path.split(imgout)[1])
             
     if not os.path.exists(imgout):
+        print( imgout)
         img = Image.open(imgin)
+        #if not exif['Orientation']:
+        #    img=img.rotate(90, expand=True)
+        #img.thumbnail((1000,1000), Image.ANTIALIAS)
         if img.size[0] > newwidth and img.size[0] > img.size[1]:
             xpix = newwidth
             wpercent = (newwidth/float(img.size[0]))
             ypix = int((float(img.size[1])*float(wpercent)))
-            img = img.resize((xpix,ypix), Image.ANTIALIAS)
+            try:
+                img = img.resize((xpix,ypix), Image.ANTIALIAS)
+            except:
+                print "problema resize"
         elif img.size[1] > newwidth:
             # case image is portrait, may be square too
             ypix = newwidth
             wpercent = (newwidth/float(img.size[1]))
             xpix = int((float(img.size[0])*float(wpercent)))
-            img = img.resize((xpix,ypix), Image.ANTIALIAS)
+            try:
+                img = img.resize((xpix,ypix), Image.ANTIALIAS)
+            except:
+                print "problema resize"
         else:
             print ("copiando imagen chico: %d w x %d h" % (img.size[0], img.size[1]))
             # solamente copiar
@@ -318,6 +376,14 @@ a img{border: none;}
 #detalles ul ul li {margin: 5px;background:#CCCCCC;}
 #detalles ul ul {display: none;}
 #detalles ul li:hover ul, #detalles ul ul li:hover {display: block;}
+
+.monthbreak {clear: both; display: block; background:#D2E1EF;}
+.tagbreak {clear: both; display: block; background:#F7E4B4;}
+
+/*
+#taglistdiv, #copylistdiv {position: absolute; left: -9999px;}
+*/
+
 -->
 </STYLE>
 <script type="text/javascript"  src="index_th.js"></script>
@@ -332,6 +398,7 @@ orig_root = '../fotos/originales/copete/';
 // necesario adaptar thumb_root y orig_root, caso index.html fuera de la base de las imagenes en miniatura
 
 //listfile = listfile_master[0]   //"imglist.js";
+copyitems = 0;
 
 
 function listas2menu(lista){
@@ -352,13 +419,16 @@ function listas2menu(lista){
         content = content + '</ul>'
     }
 	document.getElementById('menucategory').innerHTML = content;
+    if (placetags.length < 1) {
+        document.getElementById('copyicons').innerHTML = '';        // no hay datos de comentarios de imagenes
+    }
 	return content;
 }
 
 
 function swapdetails(subcat, subdir, divtitulo, divdetail){
     subcat_name = dirlist[0][subcat];
-	divcontent = '</b>' + subcat_name + '.' + subdir + ':</b> ';
+	divcontent = '</b>' + subcat_name + ':</b> ';
 
 	if (subdir > 0){
 		divcontent = divcontent + '<a href="#" onclick="swapdetails(' + subcat + ", " + (subdir -1 ) + ", 'contenttitle2', 'detalles');" + '">&nbsp;/' + dirlist[subcat_name][subdir -1] + '</a> &lt; ';
@@ -367,23 +437,41 @@ function swapdetails(subcat, subdir, divtitulo, divdetail){
 	if (subdir < dirlist[dirlist[0][subcat]].length -1){
 		divcontent = divcontent +  ' &gt; <a href="#" onclick="swapdetails(' + subcat + ", " + (subdir +1 ) + ", 'contenttitle2', 'detalles');" + '">&nbsp;/' + dirlist[subcat_name][subdir +1] ;
 	}
-    //divcontent = dirlist[0][subcat] + '.' + subdir + ': ' + divcontent;
     document.getElementById(divtitulo).innerHTML = divcontent;
 
 	document.title = 'Lista de imagenes >> ' + dirlist[0][subcat]  ;
 
-	divcontent = ' <ul>';
+	divcontent = '<ul>';
+    showitem = 0;
     for ( var i = 0; i < imagelist[subcat_name].length; i++) {
 		if (dirlist[subcat_name][subdir] == imagelist[subcat_name][i][0].substring(0, imagelist[subcat_name][i][0].lastIndexOf("/"))){
             console.log(subcat_name + '/' + imagelist[subcat_name][i][0]);
-            if (i == 0 || imagelist[subcat_name][i][3] > imagelist[subcat_name][i-1][3]){
-                //if (imagelist[subcat_name][i][3] > imagelist[subcat_name][i-1][3]){
-                    divcontent = divcontent + "<li>------------ <br>" + imagelist[subcat_name][i][3] + "<br>------------ <br></li>"
-                //}
+            infoline = '';
+            infoplus = '';
+            infostar = '';
+            infotags = '';
+
+            // agregar linea con fecha nueva al cambiar del mes:
+            if (showitem == 0 || imagelist[subcat_name][i][3] > imagelist[subcat_name][i-1][3]) {
+                divcontent = divcontent + '</ul><span class="monthbreak"> ' + imagelist[subcat_name][i][1] + '</span> <ul>';
+                showitem += 1;
+            } 
+            
+            if ((subcat_name + '/' + imagelist[subcat_name][i][0]) in placetags) { 
+                infoline = placetags[subcat_name + '/' + imagelist[subcat_name][i][0]][1];
+                //if (infoline.indexOf("/") == 0) { 
+                if ( /^[*#/]/.test(infoline) ) { 
+                    infoplus = infoline;
+                    //alert (infoplus);       // star, tag(s), info text (not place)
+                } else {
+                    divcontent = divcontent + '</ul><span class="tagbreak"> ' + infoline + '</span> <ul>';
+                }
             }
+
             // atencion solo link apunta a thumbnail, ya no apunta al original !!
 			//divcontent = divcontent + '<li><img id="lafoto' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'" width="120"><ul><li><a href="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] + '" target="_blank" ><img id="lafoto_big' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'"></a></li></ul></li>';
-			divcontent = divcontent + '<li><img id="lafoto' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'" width="120"><ul><li><img id="lafoto_big' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'">' + imagelist[subcat_name][i][1] + '<br>' + imagelist[subcat_name][i][0].substring(imagelist[subcat_name][i][0].lastIndexOf("/") + 1) +  ' ' + imagelist[subcat_name][i][2] +'</li></ul></li>';
+			//divcontent = divcontent + '<li><img id="lafoto' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'" width="120"><ul><li><img id="lafoto_big' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'">' + imagelist[subcat_name][i][1] + '<br>' + imagelist[subcat_name][i][0].substring(imagelist[subcat_name][i][0].lastIndexOf("/") + 1) +  ' ' + imagelist[subcat_name][i][2] +'</li></ul></li>';
+			divcontent = divcontent + '<li><img id="lafoto' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'" width="120"><ul><li><a href="#" onclick="return copy2box(\'' + subcat_name  + '/' + imagelist[subcat_name][i][0] + ','+ imagelist[subcat_name][i][1] + '\');"><img id="lafoto_big' + i + '" src="' + subcat_name + '_th/' + imagelist[subcat_name][i][0] +'"></a>' + imagelist[subcat_name][i][1] + '<br>' + imagelist[subcat_name][i][0].substring(imagelist[subcat_name][i][0].lastIndexOf("/") + 1) +  ' ' + imagelist[subcat_name][i][2] + infoplus + '</li></ul></li>';
 		}
 	}
     
@@ -393,6 +481,62 @@ function swapdetails(subcat, subdir, divtitulo, divdetail){
 	return 0;
 }
 
+
+function copy2clip(thistext) {
+    /* thanks 
+    https://hackernoon.com/copying-text-to-clipboard-with-javascript-df4d4988697f
+    https://gist.github.com/Chalarangelo/99e7cbee0de3c94f0077bb7555110767#file-copytoclipboard-js
+    https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
+    */
+    if (thistext === undefined) { thistext = '';} 
+    
+  const el = document.createElement('textarea');
+  /* el.value = 'hola que tal'; */
+  el.value = thistext;
+  el.setAttribute('readonly', '');
+  el.style.position = 'absolute';
+  el.style.left = '-9999px';
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  
+  //alert("Texto copiado: " + el.value);
+  document.body.removeChild(el);
+
+}
+
+
+
+function copy2box(thistext) {
+    if (thistext === undefined) { thistext = '';} 
+    var taginfo = prompt("Info de " + thistext.split(",")[0], "Lugar, evento");
+    if (taginfo) {
+    
+      document.getElementById("taglist").value += "\n\"" + thistext.split(",")[0] + "\":\t[\"" + thistext.split(",")[1] + "\", \"" + taginfo + "\"],";
+      document.getElementById("taglist").value = document.getElementById("taglist").value.split("\n").slice(0,14).join("\n") + "\n" + document.getElementById("taglist").value.split("\n").slice(14).sort().join("\n");
+
+      document.getElementById("copylist").value += "\n" + thistext.split(",")[0];
+      document.getElementById("copylist").value = document.getElementById("copylist").value.split("\n").sort().join("\n");
+
+      copyitems += 1;
+      document.getElementById('copyicons').innerHTML = 'exportar <a href="#" onclick="copybox2clip(\'taglist\')">marcadores</a> <a href="#" onclick="copybox2clip(\'copylist\', \'archivos.txt\')">archivos</a> (' + copyitems + ')';
+    }
+    return false;
+}
+
+
+function copybox2clip(boxname, filename='placetags.js') {
+
+  const el = document.getElementById(boxname);
+
+  el.select();
+  document.execCommand('copy');
+  
+  //alert("Save copied text to: " + filename);
+  alert("Texto copiado para guardar en: " + filename);
+
+}
+
 // -->
 </script>
 </head>
@@ -400,22 +544,44 @@ function swapdetails(subcat, subdir, divtitulo, divdetail){
 <body onload="listas2menu(dirlist);">
 
 <div id="menucategory" style="float: left; margin-right: 15pt;z-index:1000;"></div>
-    
+<div id="copyicons" style="float: right; margin-right: 15pt;z-index:1000;">..</div>
+
 <center><div id="contenttitle2" >categoria actual</div></center>
 
 <div id= "detalles" style="text-align: center;"></div>
+
+
+<div id="taglistdiv" style="position: absolute; left: -9999px"><textarea id="taglist">
+/*
+Lista para guardar en marcadores - para destacar en pantalla del catalogo:
+
+Save as: placetags.js
+
+and in index_th.js comment: 
+//placetags = [];
+
+and uncomment: 
+jsinclude('placetags.js');
+*/
+
+placetags = {
+};
+</textarea></div>
+
+<div id="copylistdiv" style="position: absolute; left: -9999px"><textarea id="copylist">
+    Lista de archivos a copiar</textarea></div>
 
 </body>
 </html>
 """
     
-
     if not os.path.exists(indexfile):
         idx = open(indexfile, 'w')
         idx.write(htmlcontent)
         idx.close()
 
     return 0
+
 
 def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
     """
@@ -438,8 +604,9 @@ def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
         otherfiles = ['.avi', '.mp4', '.mov', '.raw', '.rw2']   # archivos a mencionar/listar, pero no convertir
         skipdirs = ['_', '.', '..', '_inf', '_thumbs', '.svn']
         infofiles = ['.txt', '.nfo', '.tag']
-    elif actiontype == 'clonetree':
+    elif actiontype in ['clonetree', 'synctree']:
         validfiles = ['.jpg']
+        otherfiles = ['.mp5', '.rw8']
         skipdirs = ['_', '.', '..', '_inf', '_thumbs', '.svn']
         infofiles = ['.txt', '.nfo', '.tag']
     else: 
@@ -461,7 +628,7 @@ def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
         print ("targetdir: %s" % (targetdir))
         #sys.exit()
 
-    if actiontype in ['jpgthumbs', 'clonetree', 'resize']:
+    if actiontype in ['jpgthumbs', 'clonetree', 'resize', 'synctree']:
         if not os.path.exists(targetdir):
             os.mkdir(targetdir)
     # eventualmente agregar fecha, o algun numero diferenciador..
@@ -493,12 +660,13 @@ imagelist['%s'] = [
             
         thumb_dir = os.path.join(targetdir, root[len(startdir)+1:])
         
-        if actiontype == 'clonetree':
+        if actiontype in ['clonetree', 'synctree']:
             mk_dir(thumb_dir)
             # solo un nivel, esta mas completo en img_thumb !!
             #if not os.path.exists(thumb_dir):
             #    os.mkdir(thumb_dir)
-            continue
+            if actiontype == 'clonetree':
+                continue
 
 
         for f in files:
@@ -531,6 +699,7 @@ imagelist['%s'] = [
                     #print thisfile
 
                     listfile.write("[\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"\"],\n" % (os.path.join(root[len(startdir)+1:],f).replace('\\', '/').replace('//', '/'), str(time.strftime("%d/%m/%Y %H:%M:%S",time.gmtime(os.path.getmtime(thisfile)))), img_size(thisfile), str(time.strftime("%Y%m",time.gmtime(os.path.getmtime(thisfile)))), img_getexif(thisimage, 'Model'), img_getexif(thisfile, 'LensSpecification'), img_getexif(thisimage, 'FocalLength'), img_getexif(thisimage, 'ISOSpeedRatings'), img_getexif(thisimage, 'FNumber'), img_getexif(thisimage, 'ExposureTime')))
+                    #print ("[\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"\"]," % (os.path.join(root[len(startdir)+1:],f).replace('\\', '/').replace('//', '/'), str(time.strftime("%d/%m/%Y %H:%M:%S",time.gmtime(os.path.getmtime(thisfile)))), img_size(thisfile), str(time.strftime("%Y%m",time.gmtime(os.path.getmtime(thisfile)))), img_getexif(thisimage, 'Model'), img_getexif(thisfile, 'LensSpecification'), img_getexif(thisimage, 'FocalLength'), img_getexif(thisimage, 'ISOSpeedRatings'), img_getexif(thisimage, 'FNumber'), img_getexif(thisimage, 'ExposureTime')))
                     #outfile.write(ff+'\t'+ string.upper(ff[ff.rfind(".")+1:])+'\t'+ str(os.path.getsize(file))+'\t'+ str(time.strftime("%d/%m/%Y %H:%M:%S",time.gmtime(os.path.getmtime(file))))+'\t'+ os.path.split(path)[1]+'\n')
 
 
@@ -542,11 +711,16 @@ imagelist['%s'] = [
                 print (f)
                 # listar adicional en otra variable
                 otherfileslist.append(os.path.join(root,f))
-
-            if os.path.splitext(f)[1].lower() in infofiles and actiontype == 'jpglistinfo':
-                print ("copiando archivo " , f )    
-                mk_dir(thumb_dir)
-                shutil.copy2(os.path.join(root,f), os.path.join(thumb_dir,f))       # copiar sin preguntar
+                
+            if (os.path.splitext(f)[1].lower() in infofiles and actiontype == 'jpglistinfo') or actiontype == 'synctree':
+                print "copiando archivo " , f,   
+                if not os.path.exists(thumb_dir):
+                    mk_dir(thumb_dir)
+                   
+                #if not os.path.exists(os.path.join(thumb_dir,f)) or actiontype == 'jpglistinfo':
+                if not os.path.exists(os.path.join(thumb_dir,f)) or not samefiles(os.path.join(root,f), os.path.join(thumb_dir,f)) or actiontype == 'jpglistinfo':
+                    print "ii"   
+                    shutil.copy2(os.path.join(root,f), os.path.join(thumb_dir,f))       # copiar sin preguntar
                         #shutil.move(os.path.join(os.path.split(target_dir)[0], os.path.split(imgout)[1]), imgout)
 
 
@@ -574,7 +748,7 @@ def main(args):
 
 
     # menu inicial - modos de operacion
-    print ("programa de catalogar imagenes")
+    print "programa de catalogar imagenes"
 
     Tkinter.Tk().withdraw() # Close the root window
 
@@ -603,7 +777,6 @@ def main(args):
 
     print ("Iniciando scan en: %s" % (dir_start))
 
-
     #dir_target = os.path.abspath(os.curdir)
     dir_target = tkFileDialog.askdirectory(initialdir=os.curdir, title='Seleccione directorio DESTINO o escriba el nombre del nuevo directorio para crearlo')
     #directory = os.path.dirname(os.path.realpath(tkFileDialog.askopenfilename()))
@@ -627,6 +800,7 @@ def main(args):
     J - listado de imagenes JPG y miniaturas
     L - solo Listado de imagenes JPG
     i - listado de imagenes JPG + copia de archivos INFO (.txt, .inf, .nfo, .tag, .hot)
+    S - Syncronizar todos los archivos arbol origen al arbol destino ***
     C - Clonar arbol vacio de (sub)-directorios
     R - Redimensionar imagenes JPG del directorio inicial
     .. elija la LETRA deseada
@@ -635,17 +809,21 @@ def main(args):
     #uchoose= int(raw_input("Ingrese la opcion: "))
     uchoose = string.upper(raw_input("Ingrese la opcion: ")[:1])
     #uchoose = 1
-    uoptions = {'J':'jpgthumbs', 'L':'jpglist', 'I':'jpglistinfo', 'C':'clonetree', 'R':'resize'}
+    uoptions = {'J':'jpgthumbs', 'L':'jpglist', 'I':'jpglistinfo', 'C':'clonetree', 'S':'synctree', 'R':'resize'}
     if not uchoose in uoptions:
         print ("opcion seleccionada no valida")
         sys.exit()
     #if uoptions[uchoose]=='dironly':
     
-    if uoptions[uchoose] in ['clonetree', 'resize']:
+    if uoptions[uchoose] == 'resize':
         matchitems = dirscan(dir_start, uoptions[uchoose], dir_target, os.path.join(dir_target, 'reduce.txt'), 'resize')
         sys.exit()
 
+    if uoptions[uchoose] in ['clonetree', 'synctree']:
+        matchitems = dirscan(dir_start, uoptions[uchoose], dir_target, os.path.join(dir_target, 'dirtree.txt'), uoptions[uchoose])
+        sys.exit()
         
+
     # preparation for my personal local static web page ;) - no need for php..
     indexfile = 'imglist.js'
     index2file = 'index2.js'
@@ -740,6 +918,9 @@ dirlist[0] = %s;
 
 imagelist = [];
 otherfiles = [];
+
+placetags = [];
+//jsinclude('placetags.js');
 
 """ # caso windows - orig_absroot = "file:///E:/DCIM/100RICOH";
         index_file.write(indexheader % (app_ver, time.strftime("%Y%m%d_%H%M"), time.strftime("%d/%m/%Y %H:%M"), matchdirs))
