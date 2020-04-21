@@ -322,7 +322,7 @@
         <table>
             
             <tr>
-                <td>original</td>
+                <td>reference</td>
                 <td>target equiv.
                 <!-- for same angle and bokeh result //-->
                 </td>
@@ -393,11 +393,12 @@
             
             Lens Fnumber: <input type="range" min=0 max=11 id="fnumber" value="4" v-model="lens.fnumber_slide" >
             {{ lens.l_fnumber[lens.fnumber_slide] }} 
-            -> ( hyperfocal distance: {{ cc_img_hyperfocal / 1000 }} m )
+            -> ( hyperfocal distance: {{ cc_img_hyperfocal / 1000 }} m 
+            , Angle of view H/V: {{ cc_img_h_angle  }} / {{ cc_img_v_angle  }} deg)
             
                 </td>
                 <td>
-                    equiv lens f / aperture: {{ lens.f * cc_sensor_crop / cc_sensor_crop2 }} mm / {{ lens.l_fnumber[lens.fnumber_slide]  * cc_sensor_crop / cc_sensor_crop2 }} 
+                    equiv lens f / aperture: {{ Math.round(lens.f * cc_sensor_crop * 100 / cc_sensor_crop2) / 100 }} mm / {{ Math.round( lens.l_fnumber[lens.fnumber_slide]  * cc_sensor_crop * 100 / cc_sensor_crop2) / 100 }} 
                     
                 </td>
             </tr>
@@ -407,12 +408,12 @@
                <i> (only bokeh, not angle of view) </i><br>
              Lens F: <input type="range" min=5 max=300 id="focal" value="50" step="5" v-model="lens.f2"> 
             {{ lens.f2 }} mm 
-            -> Fnumber: {{ lens.l_fnumber[lens.fnumber_slide] * lens.f2 / lens.f * lens.f2 / lens.f }} 
+            -> Fnumber: {{ Math.round(lens.l_fnumber[lens.fnumber_slide] * lens.f2 * 100 / lens.f * lens.f2 / lens.f ) / 100 }} 
                
                 </td>
                 <td>
                     equivalent lens f/aperture: {{ lens.f2 * cc_sensor_crop / cc_sensor_crop2 }} mm / 
-                    {{ lens.l_fnumber[lens.fnumber_slide] * lens.f2 / lens.f * lens.f2 / lens.f * cc_sensor_crop / cc_sensor_crop2 }}
+                    {{ Math.round(lens.l_fnumber[lens.fnumber_slide] * lens.f2 * 100 / lens.f * lens.f2 / lens.f * cc_sensor_crop / cc_sensor_crop2 ) / 100 }}
                 </td>
             </tr>
             
@@ -460,6 +461,12 @@ var appmag = new Vue({
         },
         cc_img_hyperfocal: function() { /* mm */
             return Math.round( this.lens.f * this.lens.f / ( this.cc_img_coc * this.lens.l_fnumber[this.lens.fnumber_slide] )) + this.lens.f * 1.0;
+        },
+        cc_img_h_angle: function() { /* degree */
+            return Math.round( 20 * Math.atan( this.cam.sensorFMT.split("x")[0] / ( this.lens.f * 2) ) * 180 / Math.PI) / 10 ;
+        },
+        cc_img_v_angle: function() { /* degree */
+            return Math.round( 20 * Math.atan( this.cam.sensorFMT.split("x")[1] / ( this.lens.f * 2) ) * 180 / Math.PI) / 10 ;
         },
     },
 });

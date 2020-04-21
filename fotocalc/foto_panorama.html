@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<title>Panorama stitching</title>
+	<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+	<meta name="generator" content="Geany 1.27" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+
+<body>
+    
+
+
+
+
+
+	<div class="content" id="pano">
+        <h2>Panorama stitching:</h2>
+        <!-- https://petapixel.com/2020/03/03/wanted-a-panoramic-photo-calculator-app-for-my-phone/
+        https://w9kni.net/
+        
+Specify Format: 4/3, APS-C, Full Frame, or Medium Format
+Overlap in percentage desired:
+Lens focal length to be used:
+Shooting Aspect:- horizontal or vertical:
+
+The app would do the appropriate calculation and report the output.
+
+A sample output is here below (The numbers are strictly a guess):
+Format: Sony APS-C
+Overlap: 18%
+Focal Length: 55 mm
+Aspect: Horizontal
+Horizontal advance in degrees: 0 – 32 – 64 – 96 – 128 – 160 – 192
+Vertical advance in degrees: 0 – 21 – 42 – 63 – 84 – 105 – 126
+
+         //-->
+        
+        <table>
+            
+            <tr>
+                <td>Equipment</td>
+                <td>Setting
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+	Sensor: <input type="radio" value="36x24x1.0" v-model="cam.sensorFMT" CHECKED> Full format
+    <input type="radio" value="22.2x14.8x1.62" v-model="cam.sensorFMT" > APS-C 
+    <input type="radio" value="17.3x13x2.0" v-model="cam.sensorFMT" > MFT 4/3rds
+    (CROP: {{ cc_sensor_crop }} )
+    
+ 
+                </td>
+                <td>
+                Overlap mode: <input type="radio" value="H" v-model="pano.mode" CHECKED> Horizontal
+    <input type="radio" value="V" v-model="pano.mode" > Vertical 
+                </td>
+            </tr>
+
+             <tr>
+                <td>
+            Lens F: <input type="range" min=4 max=200 id="focal" value="50" step="2" v-model="lens.f"> 
+            {{ lens.f }} mm  
+            
+            
+                </td>
+                <td>
+                Overlap: <input type="range" min=0 max=50 id="focal" value="15" step="1" v-model="pano.overlap"> 
+            {{ pano.overlap }} %
+                    
+                </td>
+            </tr>
+
+            <tr>
+                <td> 
+                    Angle of view H/V: {{ cc_img_h_angle  }} / {{ cc_img_v_angle  }} deg)
+                       
+                </td>
+                <td class="has-background-grey-lighter">
+                    angles (step {{ cc_pano_angle_step }} deg):
+                    <div v-for="(value, key) in cc_pano_angles">{{ key }}: {{ value }}</div>
+                    
+                </td>
+            </tr>
+            
+        </table>
+        
+    </div>
+        ... suggested by <a href="https://petapixel.com/2020/03/03/wanted-a-panoramic-photo-calculator-app-for-my-phone/" target="_blank">w9kni.net</a>
+
+    
+    <script>
+        
+var appmag = new Vue({
+  el: '#pano',
+  data: {
+    vobj: {
+        cm: 300,
+        dofcm: 400,
+    },
+    lens: {
+        f: 50,
+        f2: 50,
+        l_fnumber: [0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32, 45],
+        l_fnumber2: [0.7, 0.8, 1.0, 1.2, 1.4, 1.7, 2, 2.4, 2.8, 3.3, 4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32, 38, 45],
+        l_fnumber3: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.5, 2.8, 3.2, 3.5, 4, 4.5, 5.0, 5.6, 6.3, 7.1, 8, 9, 10, 11, 13, 14, 16, 18, 20, 22, 25, 29, 32, 36, 40, 45],
+        fnumber_slide: 5,
+    },
+    cam: {
+        sensorFMT: "36x24x1.0",
+        sensorFMT2: "17.3x13x2.0",
+        MP: 20,
+    },
+    pano: {
+        mode: "H",
+        overlap: 15,
+    },
+    }, 
+    computed: {
+        cc_sensor_crop: function() {    /* #number */
+            return this.cam.sensorFMT.split("x")[2];
+        },
+        cc_sensor_diag: function() {    /* mm */
+            return Math.round( 100 * Math.sqrt(this.cam.sensorFMT.split("x")[0] * this.cam.sensorFMT.split("x")[0] + this.cam.sensorFMT.split("x")[1] * this.cam.sensorFMT.split("x")[1]) ) / 100;
+        },
+        cc_img_h_angle: function() { /* degree */
+            return Math.round( 20 * Math.atan( this.cam.sensorFMT.split("x")[0] / ( this.lens.f * 2) ) * 180 / Math.PI) / 10 ;
+        },
+        cc_img_v_angle: function() { /* degree */
+            return Math.round( 20 * Math.atan( this.cam.sensorFMT.split("x")[1] / ( this.lens.f * 2) ) * 180 / Math.PI) / 10 ;
+        },
+        cc_pano_angle_step: function() { /* degree */
+            pana_angle = this.cc_img_h_angle;
+            if (this.pano.mode == "V") {
+                pana_angle = this.cc_img_v_angle;
+            }
+                       
+            return Math.round(pana_angle * (100 - this.pano.overlap) / 10) / 10;
+        },
+        cc_pano_angles: function() { /* degree */
+            panoangles = [];
+            
+            currangle = 0;
+            while (currangle < 360) {
+                panoangles.push(Math.round(currangle));
+                currangle += this.cc_pano_angle_step;
+            }
+            
+            return panoangles;
+        },
+    },
+});
+
+
+        
+/*
+ver tambien:
+https://www.cambridgeincolour.com/photography-tools.htm
+http://dofmaster.com/hyperfocal.html
+
+
+http://camerapedia.wikia.com/wiki/Light_and_Exposure_Values_(LV_%26_EV)
+EV = LV at ISO 100, Zero EV is defined as f/1.0 at one second, EV1 is one stop less: f/1.4 at 1 second, common values: 1 (dark)-17 (bright), negative value possible
+http://www.fredparker.com/ultexp1.htm
+
+
+http://dpanswers.com/roztr/content_show.php?id=317 Watt-Seconds vs. Guide Numbers
+GNm = SQRT(Ws) x 4 // using reflector ca 35mm lens like dispersion
+GN = distance (m) at iso100 f 1.0, distance = GN / fnumber
+http://oregoncoastphotoclub.tripod.com/calcs/flash.htm
+
+https://www.mhohner.de/formulas.php
+
+coc:
+human at 25cm: 0.2 mm (=5 lp/mm), at angle 60" is ca 30cm diagonal - 8″×10″
+if original is 35mm , equivalent factor 7, on negative/sensor coc equivalents 0.2mm/7 = 0.029mm
+
+http://photoseek.com/2013/compare-digital-camera-sensor-sizes-full-frame-35mm-aps-c-micro-four-thirds-1-inch-type/
+
+https://www.photopills.com/calculators/diffraction
+*/    
+    </script>
+</body>
+
+</html>

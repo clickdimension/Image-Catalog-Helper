@@ -19,6 +19,14 @@ Other run - options:
 - resize all images of selected directory
 
 
+Comment:
+When i started this personal project i didn't know yet:
+
+https://www.damonlynch.net/rapid/
+https://github.com/snuq/Snu-Photo-Manager
+
+
+
 /fotocalc:
 
 Browser page with javascript for some photography calculations.
@@ -27,6 +35,12 @@ Currently:
 - Flash
 - Macro
 - Depth of field
+- DOF (via desired magnification)
+- Equivalent lens
+
+
+Suggestion for panorama module from:
+https://w9kni.net/ - https://petapixel.com/2020/03/03/wanted-a-panoramic-photo-calculator-app-for-my-phone/
 
 
 ---

@@ -633,7 +633,7 @@ def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
 
 
     skipdirs = ['.', '..']
-    thumbwidth = 400
+    thumbwidth = 500
     if actiontype in ['jpgthumbs', 'jpglist', 'jpglistinfo', 'resize']:
         validfiles = ['.jpg']
         otherfiles = ['.avi', '.mp4', '.mov', '.raw', '.rw2']   # archivos a mencionar/listar, pero no convertir
@@ -656,7 +656,7 @@ def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
         size_choose = int(raw_input("Escriba el numero: ")[:1])
         if size_choose > 7:
             thumbwidth = 800
-        if size_choose > 4:
+        if size_choose > 5:
             thumbwidth = 640
         elif size_choose > 0:
             thumbwidth = size_choose * 1024
@@ -675,7 +675,7 @@ def dirscan(startdir, actiontype, targetdir, listfile_name, subdir, dive = 1):
         headertext = """// sdcat (kh) ver %s - listado %s
 generated['%s'] = "%s";
 listfile_master['%s'] = "index_th.js";
-thumb_root['%s'] = "%s_th";
+thumb_root['%s'] = "%s";
 orig_root['%s'] = "%s";
 
 imagelist['%s'] = [
@@ -780,7 +780,7 @@ def main(args):
     """
 
     global app_ver
-    app_ver = '0.0.1709'
+    app_ver = '0.1.1902'
 
 
     # menu inicial - modos de operacion
